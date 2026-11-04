@@ -1,0 +1,1273 @@
+<!DOCTYPE html>
+<html lang="km">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Refill Map Phnom Penh | ផែនទីចាក់ទឹកស្អាត</title>
+  <script src="https://www.gstatic.com/antigravity/web/dev/tailwindcss.min.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Kantumruy+Pro:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+    
+    :root {
+      --fp-pink: #d70f64;
+      --fp-pink-hover: #b80c54;
+      --fp-pink-light: #fdf2f7;
+      --fp-pink-soft: #fce7f0;
+      --fp-dark: #1f1f1f;
+      --fp-gray: #707070;
+      --fp-border: #ebebeb;
+      --fp-bg: #f7f7f7;
+    }
+
+    body {
+      font-family: 'Plus Jakarta Sans', 'Kantumruy Pro', system-ui, -apple-system, sans-serif;
+      user-select: none;
+      background-color: var(--fp-bg);
+      color: var(--fp-dark);
+    }
+
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+
+    /* Foodpanda style subtle scrollbar */
+    .fp-scroll::-webkit-scrollbar {
+      width: 5px;
+    }
+    .fp-scroll::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    .fp-scroll::-webkit-scrollbar-thumb {
+      background: #e2e8f0;
+      border-radius: 10px;
+    }
+    .fp-scroll::-webkit-scrollbar-thumb:hover {
+      background: #cbd5e1;
+    }
+
+    /* Pin Pulse Animation in Foodpanda Pink */
+    @keyframes fp-pulse {
+      0% { transform: scale(1); filter: drop-shadow(0 0 0 rgba(215, 15, 100, 0.7)); }
+      50% { transform: scale(1.15); filter: drop-shadow(0 0 14px rgba(215, 15, 100, 0.9)); }
+      100% { transform: scale(1); filter: drop-shadow(0 0 0 rgba(215, 15, 100, 0.7)); }
+    }
+    .active-fp-pin {
+      animation: fp-pulse 1.8s infinite ease-in-out;
+      transform-origin: center;
+    }
+
+    @keyframes user-radar {
+      0% { transform: scale(0.6); opacity: 0.9; }
+      100% { transform: scale(2.6); opacity: 0; }
+    }
+    .user-radar-pulse {
+      animation: user-radar 2.2s cubic-bezier(0.2, 0.6, 0.4, 1) infinite;
+    }
+
+    /* Clean dot grid background */
+    .map-canvas-bg {
+      background-color: #f8fafc;
+      background-image: radial-gradient(#e2e8f0 1.3px, transparent 1.3px);
+      background-size: 20px 20px;
+    }
+  </style>
+</head>
+<body class="h-screen w-screen overflow-hidden flex flex-col antialiased">
+
+  <!-- ==================== FOODPANDA STYLE CLEAN HEADER ==================== -->
+  <header class="bg-white border-b border-[#ebebeb] px-6 py-3 flex items-center justify-between z-30 flex-shrink-0 shadow-xs">
+    
+    <!-- Brand Logo & Delivery-style Location -->
+    <div class="flex items-center space-x-6">
+      
+      <!-- Foodpanda style Logo -->
+      <div class="flex items-center space-x-2.5 cursor-pointer" onclick="resetDesktopMapView()">
+        <div class="w-10 h-10 rounded-2xl bg-[#d70f64] text-white flex items-center justify-center text-xl shadow-md shadow-pink-500/20 font-black">
+          💧
+        </div>
+        <div>
+          <div class="flex items-center space-x-1.5">
+            <span class="text-xl font-extrabold tracking-tight text-[#d70f64]">refill<span class="text-[#1f1f1f]">map</span></span>
+            <span class="text-[10px] bg-[#fdf2f7] text-[#d70f64] font-bold px-2 py-0.5 rounded-full border border-[#fce7f0]">RUPP</span>
+          </div>
+          <p class="text-[11px] text-[#707070] font-medium leading-none" id="header-tagline">ផែនទីចាក់ទឹកស្អាត · Phnom Penh</p>
+        </div>
+      </div>
+
+      <!-- Foodpanda Address Location Dropdown Style -->
+      <div class="hidden md:flex items-center space-x-2 bg-[#f7f7f7] hover:bg-[#f2f2f2] px-3.5 py-1.5 rounded-full border border-[#ebebeb] cursor-pointer transition" onclick="resetDesktopMapView()">
+        <span class="text-[#d70f64] text-sm">📍</span>
+        <div class="text-xs">
+          <span class="text-[#707070] text-[10px] block font-medium leading-none" data-i18n="loc_label">ទីតាំងបច្ចុប្បន្ន (Location)</span>
+          <span class="font-bold text-[#1f1f1f] leading-tight">Toul Kork · RUPP Main Campus</span>
+        </div>
+        <span class="text-[#707070] text-xs ml-1">▾</span>
+      </div>
+
+    </div>
+
+    <!-- Header Actions (Suggest Station, About, Language) -->
+    <div class="flex items-center space-x-3">
+      
+      <!-- Suggest a Place Button -->
+      <button onclick="openModal('suggest-modal')" class="px-4 py-2 rounded-full bg-[#d70f64] hover:bg-[#b80c54] active:scale-95 text-white font-bold text-xs flex items-center space-x-1.5 shadow-sm shadow-pink-500/20 transition">
+        <span class="text-sm">＋</span>
+        <span data-i18n="btn_suggest">ណែនាំកន្លែងចាក់ទឹក (Suggest Place)</span>
+      </button>
+
+      <!-- About Project Button -->
+      <button onclick="openModal('about-modal')" class="px-3.5 py-2 rounded-full bg-white hover:bg-[#f7f7f7] border border-[#ebebeb] text-[#1f1f1f] font-semibold text-xs flex items-center space-x-1.5 transition">
+        <span>ℹ️</span>
+        <span data-i18n="btn_about">អំពីគម្រោង</span>
+      </button>
+
+      <!-- Language Switcher: Khmer / English -->
+      <div class="flex items-center bg-[#f7f7f7] p-0.5 rounded-full border border-[#ebebeb]">
+        <button id="lang-btn-km" onclick="setLanguage('km')" class="px-3 py-1 rounded-full text-xs font-bold bg-white text-[#d70f64] shadow-xs transition flex items-center space-x-1">
+          <span>🇰🇭</span>
+          <span>ខ្មែរ</span>
+        </button>
+        <button id="lang-btn-en" onclick="setLanguage('en')" class="px-3 py-1 rounded-full text-xs font-bold text-[#707070] hover:text-[#1f1f1f] transition flex items-center space-x-1">
+          <span>🇬🇧</span>
+          <span>EN</span>
+        </button>
+      </div>
+
+    </div>
+  </header>
+
+  <!-- ==================== MAIN DESKTOP BODY: SIDEBAR + MAP ==================== -->
+  <div class="flex-1 flex overflow-hidden relative">
+
+    <!-- DESKTOP LEFT SIDEBAR: Foodpanda Style Cards with Real Pictures -->
+    <aside class="w-96 lg:w-[440px] bg-white border-r border-[#ebebeb] flex flex-col z-20 flex-shrink-0 shadow-xs">
+      
+      <!-- Foodpanda style Search Bar -->
+      <div class="p-4 border-b border-[#f0f0f0] space-y-3 bg-white">
+        
+        <div class="relative">
+          <input type="text" id="search-input" oninput="handleSearch(this.value)" placeholder="ស្វែងរកកន្លែងចាក់ទឹក (Building A, CBC, IFL, St 259)..." class="w-full pl-10 pr-9 py-2.5 rounded-full border border-[#ebebeb] bg-[#f7f7f7] hover:bg-white focus:bg-white text-xs text-[#1f1f1f] placeholder-[#8c8c8c] focus:outline-none focus:ring-2 focus:ring-[#d70f64]/40 focus:border-[#d70f64] transition">
+          <span class="absolute left-3.5 top-3 text-[#d70f64] text-xs">🔍</span>
+          <button id="search-clear-btn" onclick="clearSearch()" class="absolute right-3.5 top-2.5 text-[#8c8c8c] hover:text-[#1f1f1f] text-xs hidden">✕</button>
+        </div>
+
+        <!-- Foodpanda Category Style Filter Pills -->
+        <div class="flex items-center space-x-1.5 overflow-x-auto no-scrollbar py-0.5">
+          <button onclick="setFilter('all')" id="filter-all" class="filter-pill px-3.5 py-1.5 rounded-full text-xs font-bold whitespace-nowrap bg-[#d70f64] text-white shadow-xs transition">
+            <span data-i18n="filter_all">ទាំងអស់</span> (<span id="count-all">6</span>)
+          </button>
+          <button onclick="setFilter('free')" id="filter-free" class="filter-pill px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap bg-[#f7f7f7] text-[#1f1f1f] border border-[#ebebeb] hover:bg-[#f2f2f2] transition flex items-center space-x-1.5">
+            <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+            <span data-i18n="filter_free">ឥតគិតថ្លៃ (Free)</span>
+          </button>
+          <button onclick="setFilter('open')" id="filter-open" class="filter-pill px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap bg-[#f7f7f7] text-[#1f1f1f] border border-[#ebebeb] hover:bg-[#f2f2f2] transition flex items-center space-x-1.5">
+            <span>🕒</span>
+            <span data-i18n="filter_open">កំពុងបើក</span>
+          </button>
+          <button onclick="setFilter('campus')" id="filter-campus" class="filter-pill px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap bg-[#f7f7f7] text-[#1f1f1f] border border-[#ebebeb] hover:bg-[#f2f2f2] transition flex items-center space-x-1.5">
+            <span>🏫</span>
+            <span data-i18n="filter_campus">ក្នុងសាលា RUPP</span>
+          </button>
+          <button onclick="setFilter('paid')" id="filter-paid" class="filter-pill px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap bg-[#f7f7f7] text-[#1f1f1f] border border-[#ebebeb] hover:bg-[#f2f2f2] transition flex items-center space-x-1.5">
+            <span>៛</span>
+            <span data-i18n="filter_paid">បង់ប្រាក់ (200៛)</span>
+          </button>
+        </div>
+
+      </div>
+
+      <!-- Subheader: Count & Near me Info -->
+      <div class="px-4 py-2 bg-[#fbfbfb] border-b border-[#ebebeb] flex items-center justify-between text-xs text-[#707070]">
+        <span class="font-bold text-[#1f1f1f] flex items-center space-x-1.5">
+          <span class="text-[#d70f64]">📷</span>
+          <span data-i18n="sidebar_places_title">រូបភាពជាក់ស្ដែងកន្លែងចាក់ទឹក</span>
+          <span class="text-[#d70f64] font-semibold" id="places-count-tag">(6)</span>
+        </span>
+        <span class="text-[11px] text-[#8c8c8c]" data-i18n="sort_distance">រៀបតាមចម្ងាយជិតបំផុត</span>
+      </div>
+
+      <!-- Foodpanda Style Cards List with Real Photos -->
+      <div id="desktop-places-list" class="flex-1 overflow-y-auto fp-scroll p-3 space-y-3 bg-[#f7f7f7]">
+        <!-- Dynamically rendered station cards with real photos -->
+      </div>
+
+      <!-- Sidebar Footer -->
+      <div class="p-3 bg-white border-t border-[#ebebeb] text-xs text-[#707070] flex items-center justify-between">
+        <div class="flex items-center space-x-2">
+          <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+          <span>RUPP Media & AI Project</span>
+        </div>
+        <span class="text-[#d70f64] font-bold">2026–2027</span>
+      </div>
+
+    </aside>
+
+    <!-- DESKTOP RIGHT AREA: MAP CANVAS WITH FOODPANDA ACCENTS -->
+    <main class="flex-1 h-full relative overflow-hidden select-none map-canvas-bg">
+      
+      <!-- Interactive SVG Canvas covering the full right screen -->
+      <div id="map-viewport" class="w-full h-full cursor-grab active:cursor-grabbing overflow-hidden relative">
+        <svg id="svg-desktop-map" class="w-full h-full transition-transform duration-150 ease-out" viewBox="0 0 1200 800" preserveAspectRatio="xMidYMid slice">
+          
+          <defs>
+            <!-- Drop shadow for Foodpanda pink pins -->
+            <filter id="fp-shadow" x="-30%" y="-30%" width="160%" height="160%">
+              <feDropShadow dx="0" dy="4" stdDeviation="5" flood-color="#d70f64" flood-opacity="0.3"/>
+            </filter>
+            <!-- Campus soft green pattern -->
+            <pattern id="campus-grass-pat" width="24" height="24" patternUnits="userSpaceOnUse">
+              <rect width="24" height="24" fill="#f0fdf4"/>
+              <circle cx="4" cy="4" r="1.5" fill="#dcfce7"/>
+              <circle cx="16" cy="16" r="1.5" fill="#dcfce7"/>
+            </pattern>
+            <!-- Soft water gradient -->
+            <linearGradient id="pond-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#7dd3fc"/>
+              <stop offset="100%" stop-color="#0ea5e9"/>
+            </linearGradient>
+          </defs>
+
+          <!-- Outer Background -->
+          <rect x="0" y="0" width="1200" height="800" fill="#fbfcfd"/>
+
+          <!-- Surrounding Urban Neighborhoods & Streets -->
+          <g opacity="0.45">
+            <rect x="30" y="30" width="200" height="300" rx="12" fill="#f1f5f9"/>
+            <rect x="250" y="30" width="80" height="130" rx="10" fill="#f1f5f9"/>
+            <rect x="980" y="30" width="190" height="300" rx="12" fill="#f1f5f9"/>
+            <rect x="30" y="470" width="200" height="300" rx="12" fill="#f1f5f9"/>
+            <rect x="980" y="470" width="190" height="300" rx="12" fill="#f1f5f9"/>
+          </g>
+
+          <!-- ==================== RUPP MAIN CAMPUS GROUNDS ==================== -->
+          <path d="M 250 80 L 950 80 L 950 360 L 250 360 Z" fill="url(#campus-grass-pat)" stroke="#86efac" stroke-width="2.5" rx="20"/>
+          
+          <!-- Campus Internal Walkways -->
+          <g stroke="#fef08a" stroke-width="7" stroke-linecap="round" stroke-linejoin="round" opacity="0.9">
+            <line x1="600" y1="360" x2="600" y2="140" />
+            <line x1="380" y1="230" x2="840" y2="230" />
+            <line x1="380" y1="150" x2="840" y2="150" />
+            <line x1="380" y1="80" x2="380" y2="360" />
+            <line x1="840" y1="80" x2="840" y2="360" />
+          </g>
+
+          <!-- Building A (Administration & Central Classrooms) -->
+          <g transform="translate(510, 120)">
+            <rect x="0" y="0" width="180" height="70" rx="10" fill="#fef9c3" stroke="#eab308" stroke-width="1.5"/>
+            <text x="90" y="32" font-size="13" font-weight="800" text-anchor="middle" fill="#854d0e">Building A (អគារ A)</text>
+            <text x="90" y="52" font-size="11" text-anchor="middle" fill="#a16207">RUPP Administration</text>
+          </g>
+
+          <!-- STEM Building & CBC (Centre for Biodiversity Conservation) -->
+          <g transform="translate(280, 120)">
+            <rect x="0" y="0" width="160" height="70" rx="10" fill="#e0f2fe" stroke="#38bdf8" stroke-width="1.5"/>
+            <text x="80" y="32" font-size="12" font-weight="800" text-anchor="middle" fill="#0369a1">CBC / STEM Bldg</text>
+            <text x="80" y="52" font-size="10.5" text-anchor="middle" fill="#0284c7">មជ្ឈមណ្ឌលជីវចម្រុះ</text>
+          </g>
+
+          <!-- Hun Sen Library -->
+          <g transform="translate(730, 120)">
+            <rect x="0" y="0" width="150" height="70" rx="10" fill="#ffedd5" stroke="#fb923c" stroke-width="1.5"/>
+            <text x="75" y="32" font-size="12" font-weight="800" text-anchor="middle" fill="#9a3412">Hun Sen Library</text>
+            <text x="75" y="52" font-size="10" text-anchor="middle" fill="#c2410c">បណ្ណាល័យ ហ៊ុន សែន</text>
+          </g>
+
+          <!-- CJCC (Cambodia-Japan Cooperation Center) -->
+          <g transform="translate(750, 240)">
+            <rect x="0" y="0" width="150" height="80" rx="10" fill="#fdf2f7" stroke="#d70f64" stroke-width="1.5"/>
+            <text x="75" y="36" font-size="13" font-weight="800" text-anchor="middle" fill="#d70f64">CJCC Center</text>
+            <text x="75" y="56" font-size="10.5" text-anchor="middle" fill="#9d174d">មជ្ឈមណ្ឌល ជប៉ុន</text>
+          </g>
+
+          <!-- RUPP Lotus Pond -->
+          <g transform="translate(480, 240)">
+            <ellipse cx="80" cy="40" rx="70" ry="35" fill="url(#pond-grad)"/>
+            <text x="80" y="45" font-size="11" font-weight="bold" text-anchor="middle" fill="#ffffff">🪷 ស្រះទឹក RUPP Lotus Pond</text>
+          </g>
+
+          <!-- RUPP Student Canteen -->
+          <g transform="translate(290, 245)">
+            <rect x="0" y="0" width="140" height="65" rx="10" fill="#fef3c7" stroke="#f59e0b" stroke-width="1.5"/>
+            <text x="70" y="32" font-size="12" font-weight="800" text-anchor="middle" fill="#92400e">RUPP Canteen</text>
+            <text x="70" y="50" font-size="10" text-anchor="middle" fill="#b45309">អាហារដ្ឋាននិស្សិត</text>
+          </g>
+
+          <!-- Campus Gate Labels -->
+          <rect x="540" y="352" width="120" height="22" rx="11" fill="#1f1f1f"/>
+          <text x="600" y="367" font-size="10" font-weight="bold" fill="#ffffff" text-anchor="middle">RUPP MAIN GATE 🚪</text>
+
+          <rect x="320" y="68" width="120" height="22" rx="11" fill="#475569"/>
+          <text x="380" y="83" font-size="10" font-weight="bold" fill="#ffffff" text-anchor="middle">RUPP BACK GATE 🚪</text>
+
+          <!-- ==================== RUSSIAN FEDERATION BOULEVARD ==================== -->
+          <g id="blvd-group">
+            <rect x="0" y="380" width="1200" height="90" fill="#334155"/>
+            <rect x="0" y="420" width="1200" height="10" fill="#16a34a"/>
+            <circle cx="100" cy="425" r="3.5" fill="#bbf7d0"/>
+            <circle cx="300" cy="425" r="3.5" fill="#bbf7d0"/>
+            <circle cx="500" cy="425" r="3.5" fill="#bbf7d0"/>
+            <circle cx="700" cy="425" r="3.5" fill="#bbf7d0"/>
+            <circle cx="900" cy="425" r="3.5" fill="#bbf7d0"/>
+            <circle cx="1100" cy="425" r="3.5" fill="#bbf7d0"/>
+            <line x1="0" y1="400" x2="1200" y2="400" stroke="#ffffff" stroke-width="2.5" stroke-dasharray="20, 16" opacity="0.6"/>
+            <line x1="0" y1="450" x2="1200" y2="450" stroke="#ffffff" stroke-width="2.5" stroke-dasharray="20, 16" opacity="0.6"/>
+            <rect x="400" y="410" width="400" height="30" rx="15" fill="#ffffff" stroke="#d70f64" stroke-width="2"/>
+            <text x="600" y="430" font-size="13" font-weight="800" fill="#d70f64" text-anchor="middle">មហាវិថី សហព័ន្ធរុស្ស៊ី (Russian Federation Blvd)</text>
+          </g>
+
+          <!-- ==================== IFL CAMPUS ==================== -->
+          <path d="M 320 485 L 880 485 L 880 750 L 320 750 Z" fill="#f0fdf4" stroke="#86efac" stroke-width="2.5" rx="20"/>
+          
+          <!-- IFL Main Building -->
+          <g transform="translate(480, 520)">
+            <rect x="0" y="0" width="240" height="90" rx="12" fill="#e0e7ff" stroke="#6366f1" stroke-width="2"/>
+            <text x="120" y="40" font-size="15" font-weight="800" text-anchor="middle" fill="#3730a3">IFL CAMPUS</text>
+            <text x="120" y="60" font-size="12" font-weight="600" text-anchor="middle" fill="#4338ca">វិទ្យាស្ថានភាសាបរទេស</text>
+            <text x="120" y="78" font-size="10" text-anchor="middle" fill="#6366f1">Iconic Vann Molyvann Complex</text>
+          </g>
+
+          <!-- IFL Canteen -->
+          <g transform="translate(360, 625)">
+            <rect x="0" y="0" width="160" height="60" rx="10" fill="#fef3c7" stroke="#f59e0b" stroke-width="1.5"/>
+            <text x="80" y="32" font-size="12" font-weight="bold" fill="#92400e" text-anchor="middle">IFL Canteen</text>
+            <text x="80" y="50" font-size="10.5" text-anchor="middle" fill="#b45309">អាហារដ្ឋាន IFL</text>
+          </g>
+
+          <!-- IFL Water Moat & Walkway Bridges -->
+          <g transform="translate(560, 625)">
+            <rect x="0" y="0" width="280" height="55" rx="10" fill="#bae6fd" stroke="#0284c7" stroke-width="1.5"/>
+            <text x="140" y="33" font-size="12" font-weight="bold" fill="#0369a1" text-anchor="middle">ស្រះទឹកស្ថាបត្យកម្ម IFL Water Bridges</text>
+          </g>
+
+          <!-- ==================== LOCAL STREETS ==================== -->
+          <!-- Street 259 -->
+          <g>
+            <rect x="360" y="0" width="36" height="80" fill="#cbd5e1"/>
+            <text x="345" y="45" font-size="11" font-weight="bold" fill="#334155" transform="rotate(-90 345 45)">ផ្លូវ ២៥៩ (St 259)</text>
+          </g>
+
+          <!-- Street 261 -->
+          <g>
+            <rect x="955" y="0" width="30" height="380" fill="#cbd5e1"/>
+            <text x="975" y="180" font-size="11.5" font-weight="bold" fill="#334155" transform="rotate(90 975 180)">ផ្លូវ ២៦១ (St 261 - Toul Kork)</text>
+          </g>
+
+          <!-- Distant Pointers -->
+          <g transform="translate(1010, 520)" class="cursor-pointer" onclick="selectStation(3)">
+            <rect x="0" y="0" width="160" height="60" rx="12" fill="#ffffff" stroke="#ebebeb" stroke-width="1.5" filter="url(#fp-shadow)"/>
+            <text x="15" y="24" font-size="11.5" font-weight="bold" fill="#d70f64">📍 Backyard Cafe</text>
+            <text x="15" y="42" font-size="10.5" fill="#707070">Daun Penh · 3.5 km ➔</text>
+          </g>
+
+          <g transform="translate(1010, 620)" class="cursor-pointer" onclick="selectStation(2)">
+            <rect x="0" y="0" width="160" height="60" rx="12" fill="#ffffff" stroke="#ebebeb" stroke-width="1.5" filter="url(#fp-shadow)"/>
+            <text x="15" y="24" font-size="11.5" font-weight="bold" fill="#d70f64">📍 Kinin Cafe</text>
+            <text x="15" y="42" font-size="10.5" fill="#707070">T.T. Poung · 4.2 km ➔</text>
+          </g>
+
+          <!-- User Location Marker (Foodpanda Pink Pulse) -->
+          <g id="desk-user-pin" transform="translate(560, 345)">
+            <circle cx="0" cy="0" r="24" fill="#fdf2f7" opacity="0.6" class="user-radar-pulse"/>
+            <circle cx="0" cy="0" r="10" fill="#d70f64" stroke="#ffffff" stroke-width="3"/>
+            <rect x="-52" y="-36" width="104" height="22" rx="11" fill="#1f1f1f"/>
+            <text x="0" y="-21" font-size="10" font-weight="bold" fill="#ffffff" text-anchor="middle" id="desk-user-text">អ្នកនៅទីនេះ (You)</text>
+          </g>
+
+          <!-- ==================== WATER REFILL PINS ==================== -->
+          <!-- Pin 1: CBC -->
+          <g id="pin-desk-1" class="cursor-pointer transition-transform hover:scale-110 active:scale-95" transform="translate(360, 155)" onclick="selectStation(1)">
+            <circle cx="0" cy="0" r="24" fill="#d70f64" filter="url(#fp-shadow)"/>
+            <circle cx="0" cy="0" r="20" fill="#ffffff"/>
+            <text x="0" y="7" font-size="16" text-anchor="middle" fill="#d70f64">💧</text>
+            <rect x="-42" y="-42" width="84" height="22" rx="11" fill="#d70f64"/>
+            <text x="0" y="-27" font-size="9.5" font-weight="bold" fill="#ffffff" text-anchor="middle">CBC · Free</text>
+          </g>
+
+          <!-- Pin 4: RUPP Building A -->
+          <g id="pin-desk-4" class="cursor-pointer transition-transform hover:scale-110 active:scale-95" transform="translate(590, 155)" onclick="selectStation(4)">
+            <circle cx="0" cy="0" r="24" fill="#d70f64" filter="url(#fp-shadow)"/>
+            <circle cx="0" cy="0" r="20" fill="#ffffff"/>
+            <text x="0" y="7" font-size="16" text-anchor="middle" fill="#d70f64">💧</text>
+            <rect x="-52" y="-42" width="104" height="22" rx="11" fill="#d70f64"/>
+            <text x="0" y="-27" font-size="9.5" font-weight="bold" fill="#ffffff" text-anchor="middle">RUPP Bldg A · Free</text>
+          </g>
+
+          <!-- Pin 6: CJCC -->
+          <g id="pin-desk-6" class="cursor-pointer transition-transform hover:scale-110 active:scale-95" transform="translate(825, 275)" onclick="selectStation(6)">
+            <circle cx="0" cy="0" r="24" fill="#d70f64" filter="url(#fp-shadow)"/>
+            <circle cx="0" cy="0" r="20" fill="#ffffff"/>
+            <text x="0" y="7" font-size="16" text-anchor="middle" fill="#d70f64">💧</text>
+            <rect x="-44" y="-42" width="88" height="22" rx="11" fill="#d70f64"/>
+            <text x="0" y="-27" font-size="9.5" font-weight="bold" fill="#ffffff" text-anchor="middle">CJCC · Free</text>
+          </g>
+
+          <!-- Pin 7: IFL Canteen -->
+          <g id="pin-desk-7" class="cursor-pointer transition-transform hover:scale-110 active:scale-95" transform="translate(440, 645)" onclick="selectStation(7)">
+            <circle cx="0" cy="0" r="24" fill="#d70f64" filter="url(#fp-shadow)"/>
+            <circle cx="0" cy="0" r="20" fill="#ffffff"/>
+            <text x="0" y="7" font-size="16" text-anchor="middle" fill="#d70f64">💧</text>
+            <rect x="-42" y="-42" width="84" height="22" rx="11" fill="#d70f64"/>
+            <text x="0" y="-27" font-size="9.5" font-weight="bold" fill="#ffffff" text-anchor="middle">IFL · Free</text>
+          </g>
+
+          <!-- Pin 5: St 259 Shop -->
+          <g id="pin-desk-5" class="cursor-pointer transition-transform hover:scale-110 active:scale-95" transform="translate(380, 40)" onclick="selectStation(5)">
+            <circle cx="0" cy="0" r="24" fill="#1f1f1f" filter="url(#fp-shadow)"/>
+            <circle cx="0" cy="0" r="20" fill="#ffffff"/>
+            <text x="0" y="7" font-size="15" text-anchor="middle" fill="#d70f64">៛</text>
+            <rect x="-50" y="-42" width="100" height="22" rx="11" fill="#1f1f1f"/>
+            <text x="0" y="-27" font-size="9.5" font-weight="bold" fill="#ffffff" text-anchor="middle">St 259 Shop · 200៛</text>
+          </g>
+
+          <!-- Pin 8: St 261 Depo -->
+          <g id="pin-desk-8" class="cursor-pointer transition-transform hover:scale-110 active:scale-95" transform="translate(970, 260)" onclick="selectStation(8)">
+            <circle cx="0" cy="0" r="24" fill="#1f1f1f" filter="url(#fp-shadow)"/>
+            <circle cx="0" cy="0" r="20" fill="#ffffff"/>
+            <text x="0" y="7" font-size="15" text-anchor="middle" fill="#d70f64">៛</text>
+            <rect x="-46" y="-42" width="92" height="22" rx="11" fill="#1f1f1f"/>
+            <text x="0" y="-27" font-size="9.5" font-weight="bold" fill="#ffffff" text-anchor="middle">St 261 · 200៛/L</text>
+          </g>
+
+        </svg>
+      </div>
+
+      <!-- DESKTOP FLOATING MAP CONTROLS -->
+      <div class="absolute right-6 top-6 flex flex-col space-y-2 z-10">
+        <button onclick="zoomDesktopMap(1.2)" class="w-10 h-10 rounded-2xl bg-white shadow-md border border-[#ebebeb] text-[#1f1f1f] hover:text-[#d70f64] font-bold text-xl flex items-center justify-center hover:bg-[#fbfbfb] active:scale-95 transition" title="Zoom In">
+          +
+        </button>
+        <button onclick="zoomDesktopMap(0.8)" class="w-10 h-10 rounded-2xl bg-white shadow-md border border-[#ebebeb] text-[#1f1f1f] hover:text-[#d70f64] font-bold text-xl flex items-center justify-center hover:bg-[#fbfbfb] active:scale-95 transition" title="Zoom Out">
+          −
+        </button>
+        <button onclick="resetDesktopMapView()" class="w-10 h-10 rounded-2xl bg-white shadow-md border border-[#ebebeb] text-[#d70f64] font-bold text-sm flex items-center justify-center hover:bg-[#fdf2f7] active:scale-95 transition" title="Recenter RUPP">
+          🎯
+        </button>
+      </div>
+
+      <!-- MAP LEGEND OVERLAY (TOP-LEFT) -->
+      <div class="absolute left-6 top-6 z-10 bg-white/95 backdrop-blur-md px-4 py-2 rounded-full border border-[#ebebeb] shadow-sm flex items-center space-x-3 text-xs text-[#1f1f1f]">
+        <div class="flex items-center space-x-1.5">
+          <span class="w-3 h-3 rounded-full bg-[#d70f64]"></span>
+          <span class="font-bold text-[#d70f64]" data-i18n="legend_free">ឥតគិតថ្លៃ (Free Refill)</span>
+        </div>
+        <span class="text-[#ebebeb]">|</span>
+        <div class="flex items-center space-x-1.5">
+          <span class="w-3 h-3 rounded-full bg-[#1f1f1f]"></span>
+          <span class="font-bold text-[#1f1f1f]" data-i18n="legend_paid">បង់ប្រាក់ ២០០៛/L (Paid)</span>
+        </div>
+        <span class="text-[#ebebeb]">|</span>
+        <span class="text-[#707070] text-[11px]">📷 Real Photos Included</span>
+      </div>
+
+      <!-- FOODPANDA STYLE FLOATING PLACE CARD WITH REAL PHOTO -->
+      <div id="desk-place-popup" class="absolute bottom-6 left-6 right-6 lg:right-auto lg:w-[480px] bg-white rounded-3xl shadow-xl border border-[#ebebeb] p-4 z-20 transition-all duration-300 flex flex-col space-y-3">
+        <div class="flex items-start justify-between">
+          <div class="flex space-x-3.5">
+            <!-- Real photo thumbnail -->
+            <div class="relative w-16 h-16 rounded-2xl overflow-hidden flex-shrink-0 shadow-sm border border-[#ebebeb]">
+              <img id="popup-img" src="images/cbc.jpg" alt="Refill Station Real View" class="w-full h-full object-cover">
+              <span class="absolute bottom-0.5 right-0.5 bg-[#d70f64] text-white text-[8px] font-black px-1 rounded">REAL</span>
+            </div>
+            <div>
+              <div class="flex items-center space-x-2 flex-wrap">
+                <h3 id="popup-title" class="text-base font-extrabold text-[#1f1f1f] leading-tight">Centre for Biodiversity Conservation</h3>
+                <span id="popup-price-badge" class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-[#fdf2f7] text-[#d70f64] border border-[#fce7f0]">Free</span>
+                <span id="popup-dist-badge" class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-[#f7f7f7] text-[#707070]">180 m</span>
+              </div>
+              <p id="popup-address" class="text-xs text-[#707070] mt-1">Russian Federation Blvd (110), RUPP campus</p>
+              <div class="flex items-center space-x-2 mt-1.5 text-xs text-[#707070]">
+                <span id="popup-hours" class="text-emerald-600 font-bold">● កំពុងបើក · 07:30–17:00</span>
+                <span class="text-[#ebebeb]">•</span>
+                <span class="text-[#d70f64] text-xs font-semibold">✓ ត្រួតពិនិត្យរួច (Checked)</span>
+              </div>
+            </div>
+          </div>
+          <button onclick="closeDesktopPopup()" class="w-7 h-7 rounded-full bg-[#f7f7f7] text-[#707070] hover:text-[#1f1f1f] flex items-center justify-center font-bold text-xs">
+            ✕
+          </button>
+        </div>
+
+        <!-- Foodpanda CTA Actions -->
+        <div class="flex items-center space-x-2.5 pt-2 border-t border-[#f0f0f0]">
+          <a id="popup-directions-btn" href="#" target="_blank" class="flex-1 py-2.5 px-4 bg-[#d70f64] hover:bg-[#b80c54] active:scale-95 text-white rounded-full text-xs font-bold flex items-center justify-center space-x-1.5 shadow-sm shadow-pink-500/20 transition">
+            <span>🧭</span>
+            <span data-i18n="btn_directions">បង្ហាញផ្លូវលើ Google Maps (Directions)</span>
+          </a>
+          <button onclick="openFullDetailFromPopup()" class="py-2.5 px-4 bg-[#f7f7f7] hover:bg-[#ebebeb] active:scale-95 text-[#1f1f1f] rounded-full text-xs font-bold transition flex items-center space-x-1.5">
+            <span>📷</span>
+            <span data-i18n="btn_details">រូបថត & ព័ត៌មាន</span>
+          </button>
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+  <!-- ==================== MODAL 1: FULL PLACE DETAILS WITH REAL PHOTO ==================== -->
+  <div id="detail-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4 transition-opacity">
+    <div class="bg-white w-full max-w-lg rounded-3xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
+      <!-- Header in Foodpanda Pink -->
+      <div class="bg-[#d70f64] text-white p-4 flex items-center justify-between">
+        <div class="flex items-center space-x-3">
+          <span class="text-2xl" id="modal-detail-icon">💧</span>
+          <div>
+            <h3 id="modal-detail-title" class="text-base font-extrabold text-white">Centre for Biodiversity Conservation</h3>
+            <p id="modal-detail-tagline" class="text-xs text-pink-100">RUPP Clean Water Station</p>
+          </div>
+        </div>
+        <button onclick="closeModal('detail-modal')" class="w-8 h-8 rounded-full bg-white/20 hover:bg-white/30 text-white flex items-center justify-center font-bold text-sm">
+          ✕
+        </button>
+      </div>
+
+      <div class="p-5 overflow-y-auto space-y-3.5 text-xs text-[#1f1f1f]">
+        
+        <!-- Large Real View Photo Banner -->
+        <div class="relative w-full h-56 rounded-2xl overflow-hidden border border-[#ebebeb] shadow-sm bg-slate-100">
+          <img id="modal-detail-photo" src="images/cbc.jpg" alt="Real view of water refill point" class="w-full h-full object-cover">
+          <div class="absolute bottom-2.5 left-2.5 bg-black/70 backdrop-blur-md text-white text-[10px] font-bold px-3 py-1 rounded-full flex items-center space-x-1.5">
+            <span>📷</span>
+            <span>រូបថតជាក់ស្ដែងនៅទីតាំងផ្ទាល់ (Real Location Photo)</span>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3 bg-[#f7f7f7] p-3.5 rounded-2xl border border-[#ebebeb]">
+          <div>
+            <span class="text-[#707070] block text-[11px]" data-i18n="detail_price">តម្លៃទឹក (Price):</span>
+            <span id="modal-detail-price" class="font-extrabold text-[#d70f64] text-sm">ឥតគិតថ្លៃ (Free)</span>
+          </div>
+          <div>
+            <span class="text-[#707070] block text-[11px]" data-i18n="detail_hours">ម៉ោងបើក (Hours):</span>
+            <span id="modal-detail-hours" class="font-bold text-[#1f1f1f] text-sm">07:30 – 17:00</span>
+          </div>
+          <div>
+            <span class="text-[#707070] block text-[11px]" data-i18n="detail_type">ប្រភេទទឹក (Dispenser):</span>
+            <span id="modal-detail-type" class="font-semibold text-sky-700">ទឹកចម្រោះ RO ត្រជាក់</span>
+          </div>
+          <div>
+            <span class="text-[#707070] block text-[11px]" data-i18n="detail_source">ប្រភពទិន្នន័យ (Source):</span>
+            <span id="modal-detail-source" class="font-medium text-[#707070]">Refill Not Landfill list</span>
+          </div>
+        </div>
+
+        <div class="p-3.5 bg-[#fdf2f7] rounded-2xl border border-[#fce7f0] space-y-1">
+          <h4 class="font-bold text-[#d70f64]" data-i18n="detail_instructions">ការណែនាំទីតាំងសម្រាប់និស្សិត៖</h4>
+          <p id="modal-detail-notes" class="text-[#707070] leading-relaxed">
+            ស្ថិតនៅជាន់ផ្ទាល់ដីនៃអគារជីវចម្រុះ RUPP។ និស្សិតអាចយកដបទឹកផ្ទាល់ខ្លួនមកចាក់បានដោយសេរី ជួយកាត់បន្ថយការទិញដបប្លាស្ទិក!
+          </p>
+        </div>
+
+        <div class="p-2.5 bg-emerald-50 rounded-xl text-emerald-800 flex items-center space-x-2 text-[11px]">
+          <span>🌿</span>
+          <span>ការចាក់ទឹក ១ដប = កាត់បន្ថយសំរាមប្លាស្ទិក ១ដប ក្នុងទីក្រុងភ្នំពេញ</span>
+        </div>
+      </div>
+
+      <!-- Action Footer -->
+      <div class="p-4 bg-[#f7f7f7] border-t border-[#ebebeb] flex items-center justify-end space-x-2">
+        <button onclick="closeModal('detail-modal')" class="px-4 py-2 rounded-full text-[#707070] hover:bg-[#ebebeb] font-bold text-xs">
+          បិទ (Close)
+        </button>
+        <a id="modal-detail-map-link" href="#" target="_blank" class="px-5 py-2.5 bg-[#d70f64] hover:bg-[#b80c54] text-white rounded-full font-bold text-xs flex items-center space-x-1.5 shadow-sm shadow-pink-500/20">
+          <span>🧭</span>
+          <span data-i18n="btn_open_google">បើកមើលផ្លូវលើ Google Maps</span>
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== MODAL 2: SUGGEST A PLACE ==================== -->
+  <div id="suggest-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4 transition-opacity">
+    <div class="bg-white w-full max-w-lg rounded-3xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
+      <div class="bg-[#1f1f1f] text-white p-5 flex items-center justify-between">
+        <div class="flex items-center space-x-3">
+          <div class="w-8 h-8 rounded-full bg-[#d70f64] flex items-center justify-center text-sm font-bold">📝</div>
+          <div>
+            <h3 class="text-base font-extrabold text-white" data-i18n="suggest_heading">ណែនាំកន្លែងចាក់ទឹកថ្មី</h3>
+            <p class="text-xs text-[#a0a0a0]" data-i18n="suggest_sub">ផ្ញើព័ត៌មានទៅកាន់ Telegram ក្រុមការងារ RUPP</p>
+          </div>
+        </div>
+        <button onclick="closeModal('suggest-modal')" class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center font-bold text-sm">
+          ✕
+        </button>
+      </div>
+
+      <form id="suggest-form" onsubmit="submitDesktopSuggestion(event)" class="p-6 overflow-y-auto space-y-3.5 text-xs">
+        <div>
+          <label class="block font-bold text-[#1f1f1f] mb-1" data-i18n="form_name">ឈ្មោះទីតាំង (Place Name)*</label>
+          <input type="text" id="desk-form-name" required placeholder="ឧទាហរណ៍៖ អគារ STEM ជាន់ទី៣ ឬ ហាងចាក់ទឹកក្បែរ RUPP" class="w-full px-3.5 py-2.5 rounded-xl border border-[#ebebeb] focus:outline-none focus:ring-2 focus:ring-[#d70f64] text-[#1f1f1f]">
+        </div>
+
+        <div>
+          <label class="block font-bold text-[#1f1f1f] mb-1" data-i18n="form_address">អាសយដ្ឋាន ឬ ទីតាំងអគារ (Address / Building)*</label>
+          <input type="text" id="desk-form-address" required placeholder="ផ្លូវ ២៥៩, ឬ អគារក្នុង RUPP..." class="w-full px-3.5 py-2.5 rounded-xl border border-[#ebebeb] focus:outline-none focus:ring-2 focus:ring-[#d70f64] text-[#1f1f1f]">
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block font-bold text-[#1f1f1f] mb-1" data-i18n="form_price">តម្លៃ (Pricing)</label>
+            <select id="desk-form-price" class="w-full px-3.5 py-2.5 rounded-xl border border-[#ebebeb] focus:outline-none focus:ring-2 focus:ring-[#d70f64] text-[#1f1f1f] bg-white">
+              <option value="free">ឥតគិតថ្លៃ (Free)</option>
+              <option value="200">200 riel / litre</option>
+              <option value="paid">បង់ប្រាក់ផ្សេងទៀត (Other)</option>
+            </select>
+          </div>
+          <div>
+            <label class="block font-bold text-[#1f1f1f] mb-1" data-i18n="form_campus">តំបន់ (Location)</label>
+            <select id="desk-form-campus" class="w-full px-3.5 py-2.5 rounded-xl border border-[#ebebeb] focus:outline-none focus:ring-2 focus:ring-[#d70f64] text-[#1f1f1f] bg-white">
+              <option value="campus">ក្នុង RUPP Campus</option>
+              <option value="off-campus">ក្រៅសាលា (Toul Kork)</option>
+            </select>
+          </div>
+        </div>
+
+        <div>
+          <label class="block font-bold text-[#1f1f1f] mb-1" data-i18n="form_hours">ម៉ោងបើក (Opening Hours)</label>
+          <input type="text" id="desk-form-hours" placeholder="ឧទាហរណ៍៖ 07:00 – 18:00" class="w-full px-3.5 py-2.5 rounded-xl border border-[#ebebeb] focus:outline-none focus:ring-2 focus:ring-[#d70f64] text-[#1f1f1f]">
+        </div>
+
+        <div>
+          <label class="block font-bold text-[#1f1f1f] mb-1" data-i18n="form_photo">រូបថតទីតាំង (Photo)</label>
+          <div class="border-2 border-dashed border-[#ebebeb] rounded-xl p-4 text-center text-[#707070] hover:border-[#d70f64] cursor-pointer transition">
+            📷 <span data-i18n="form_photo_btn">ជ្រើសរើសរូបថតពីកុំព្យូទ័រ (Click or drag photo here)</span>
+          </div>
+        </div>
+
+        <button type="submit" class="w-full py-3 bg-[#d70f64] hover:bg-[#b80c54] text-white rounded-full font-bold text-xs flex items-center justify-center space-x-2 shadow-md shadow-pink-500/20 active:scale-95 transition">
+          <span>✈️</span>
+          <span data-i18n="form_submit">ផ្ញើទៅ Telegram ក្រុមការងារ RUPP</span>
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- ==================== MODAL 3: ABOUT PROJECT ==================== -->
+  <div id="about-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4 transition-opacity">
+    <div class="bg-white w-full max-w-lg rounded-3xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
+      <div class="bg-[#d70f64] text-white p-5 flex items-center justify-between">
+        <div class="flex items-center space-x-3">
+          <span class="text-3xl">🌱</span>
+          <div>
+            <h3 class="text-base font-extrabold text-white" data-i18n="about_title">អំពីគម្រោង Refill Map</h3>
+            <p class="text-xs text-pink-100">RUPP Media & AI Course 2026–2027</p>
+          </div>
+        </div>
+        <button onclick="closeModal('about-modal')" class="w-8 h-8 rounded-full bg-white/20 hover:bg-white/30 text-white flex items-center justify-center font-bold text-sm">
+          ✕
+        </button>
+      </div>
+
+      <div class="p-6 overflow-y-auto space-y-4 text-xs text-[#1f1f1f] leading-relaxed">
+        <div class="p-4 bg-[#fdf2f7] rounded-2xl border border-[#fce7f0]">
+          <h4 class="font-bold text-[#d70f64] mb-1" data-i18n="about_mission_title">🎯 គោលបំណងគម្រោង៖</h4>
+          <p class="text-[#707070]" data-i18n="about_mission_desc">
+            "គេហទំព័រដែលជួយនិស្សិត RUPP និងប្រជាជនក្នុងរាជធានីភ្នំពេញ ស្វែងរកកន្លែងចាក់ទឹកស្អាតក្នុងដបផ្ទាល់ខ្លួន ដើម្បីកាត់បន្ថយការទិញដបប្លាស្ទិក។"
+          </p>
+        </div>
+
+        <div>
+          <h4 class="font-bold text-[#1f1f1f] mb-2" data-i18n="about_3reasons">ហេតុអ្វីបានជាការចាក់ទឹកជួយសង្គម និងបរិស្ថាន?</h4>
+          <div class="space-y-2.5">
+            <div class="p-3 bg-[#f7f7f7] rounded-xl border border-[#ebebeb]">
+              <strong class="text-[#d70f64] block mb-0.5">1. កាត់បន្ថយសំរាមប្លាស្ទិក៖</strong>
+              <span class="text-[#707070]">ជួយកាត់បន្ថយដបប្លាស្ទិករាប់ពាន់ដបមិនឱ្យចូលទៅក្នុងគំនរសំរាម ឬប្រព័ន្ធលូទឹកស្អុយភ្នំពេញ។ (ប្រភព៖ Refill Not Landfill)</span>
+            </div>
+            <div class="p-3 bg-[#f7f7f7] rounded-xl border border-[#ebebeb]">
+              <strong class="text-[#d70f64] block mb-0.5">2. សន្សំប្រាក់និស្សិត៖</strong>
+              <span class="text-[#707070]">ការចាក់ទឹកឥតគិតថ្លៃ ឬត្រឹម ២០០៛/លីត្រ ជួយនិស្សិតសន្សំបាន ៣០,០០០ ដល់ ៥០,០០០ រៀលក្នុងមួយខែ។</span>
+            </div>
+            <div class="p-3 bg-[#f7f7f7] rounded-xl border border-[#ebebeb]">
+              <strong class="text-[#d70f64] block mb-0.5">3. សុខភាព និងទឹកស្អាត៖</strong>
+              <span class="text-[#707070]">ទឹកចម្រោះត្រូវបានពិនិត្យគុណភាពជាប្រចាំ ធានាសុខភាពល្អក្នុងពេលរៀនសូត្រ។</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="p-3 bg-[#f7f7f7] rounded-xl text-[#707070] space-y-1 text-[11px]">
+          <p><strong>ក្រុមការងារ៖</strong> Pair: Sin & Co. (Media & AI RUPP 2026–2027)</p>
+          <p><strong>ប្រភពទិន្នន័យ៖</strong> Refill Not Landfill directory & ការចុះដើរពិនិត្យផ្ទាល់ជុំវិញសាលា RUPP និងទួលគោក</p>
+        </div>
+      </div>
+
+      <div class="p-4 bg-[#f7f7f7] border-t border-[#ebebeb] flex justify-end">
+        <button onclick="closeModal('about-modal')" class="px-5 py-2 bg-[#1f1f1f] hover:bg-black text-white rounded-full font-bold text-xs">
+          យល់ព្រម (Close)
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification Popup -->
+  <div id="toast" class="fixed top-6 right-6 z-50 bg-[#1f1f1f] text-white px-5 py-2.5 rounded-full text-xs font-semibold shadow-2xl opacity-0 transition-opacity pointer-events-none flex items-center space-x-2">
+    <span class="text-[#d70f64] font-bold">✓</span>
+    <span id="toast-msg">សារជូនដំណឹង</span>
+  </div>
+
+  <!-- ==================== SCRIPT LOGIC ==================== -->
+  <script>
+    const stations = [
+      {
+        id: 1,
+        nameKm: "មជ្ឈមណ្ឌលអភិរក្សជីវចម្រុះ (CBC)",
+        nameEn: "Centre for Biodiversity Conservation",
+        addressKm: "មហាវិថី សហព័ន្ធរុស្ស៊ី (១១០), បរិវេណ RUPP",
+        addressEn: "Russian Federation Blvd (110), RUPP campus",
+        image: "images/cbc.jpg",
+        isFree: true,
+        priceLabel: "Free",
+        priceKm: "ឥតគិតថ្លៃ (Free)",
+        hours: "07:30 – 17:00",
+        isOpenNow: true,
+        isCampus: true,
+        distanceMeters: 180,
+        walkMinutes: "2 min walk",
+        typeKm: "ទឹកចម្រោះ RO ត្រជាក់ និងស្អាត",
+        typeEn: "Chilled RO Clean Filtered Water",
+        source: "Refill Not Landfill list",
+        checkedDate: "21 Oct 2026",
+        notesKm: "ស្ថិតនៅជាន់ផ្ទាល់ដីនៃអគារជីវចម្រុះ RUPP ក្បែរមន្ទីរពិសោធន៍ជីវវិទ្យា 104។ បើកទទួលស្វាគមន៍និស្សិតទាំងអស់។",
+        notesEn: "Ground floor of the Biodiversity Building at RUPP near biology lab 104. Free refills for all students.",
+        mapCoords: { x: 360, y: 155 },
+        googleUrl: "https://www.google.com/maps/search/?api=1&query=RUPP+Centre+for+Biodiversity+Conservation+Phnom+Penh"
+      },
+      {
+        id: 4,
+        nameKm: "កន្លែងចាក់ទឹកក្នុង RUPP (អគារ A)",
+        nameEn: "Water point inside RUPP (Building A)",
+        addressKm: "អគារ A ជាន់ទី១ ក្បែរការិយាល័យព្រឹទ្ធបុរស RUPP",
+        addressEn: "Building A, 1st Floor, RUPP Campus",
+        image: "images/bldg_a.jpg",
+        isFree: true,
+        priceLabel: "Free",
+        priceKm: "ឥតគិតថ្លៃ (Free)",
+        hours: "07:00 – 18:00",
+        isOpenNow: true,
+        isCampus: true,
+        distanceMeters: 120,
+        walkMinutes: "1 min walk",
+        typeKm: "ទូទឹកចម្រោះអនាម័យសាលា",
+        typeEn: "Campus Sanitary Water Dispenser",
+        source: "RUPP Student Walk inspection",
+        checkedDate: "21 Oct 2026",
+        notesKm: "កន្លែងចាក់ទឹកស្អាតក្នុងអគាររៀន A ជិតជណ្តើរយន្ត និងបង្អួចធំ។ និស្សិតអាចចាក់បានដោយសេរី។",
+        notesEn: "Clean water dispenser inside Building A near stairs and corridor windows. Free for student bottles.",
+        mapCoords: { x: 590, y: 155 },
+        googleUrl: "https://www.google.com/maps/search/?api=1&query=Royal+University+of+Phnom+Penh+Building+A"
+      },
+      {
+        id: 7,
+        nameKm: "អាហារដ្ឋាន IFL (វិទ្យាស្ថានភាសាបរទេស)",
+        nameEn: "IFL Canteen Water Point",
+        addressKm: "បរិវេណ IFL (ទល់មុខ RUPP), មហាវិថី សហព័ន្ធរុស្ស៊ី",
+        addressEn: "IFL Campus (Opposite RUPP), Russian Fed Blvd",
+        image: "images/ifl.jpg",
+        isFree: true,
+        priceLabel: "Free",
+        priceKm: "ឥតគិតថ្លៃ (Free)",
+        hours: "07:00 – 17:30",
+        isOpenNow: true,
+        isCampus: true,
+        distanceMeters: 310,
+        walkMinutes: "4 min walk",
+        typeKm: "ទូទឹកចម្រោះនិស្សិត IFL (Elkay Multi-tap)",
+        typeEn: "IFL Student Water Point (Elkay Multi-tap)",
+        source: "RUPP Student walk",
+        checkedDate: "21 Oct 2026",
+        notesKm: "ស្ថិតនៅខាងស្តាំដៃនៃអាហារដ្ឋាន IFL ជិតស្រះទឹក និងស្ថាបត្យកម្ម វណ្ណ ម៉ូលីវណ្ណ។ មានក្បាលរ៉ូប៊ីណេច្រើនងាយស្រួលចាក់។",
+        notesEn: "Located next to IFL outdoor student canteen by the iconic Vann Molyvann ponds. Multiple taps for fast refilling.",
+        mapCoords: { x: 440, y: 645 },
+        googleUrl: "https://www.google.com/maps/search/?api=1&query=Institute+of+Foreign+Languages+IFL+Phnom+Penh"
+      },
+      {
+        id: 5,
+        nameKm: "ដេប៉ូទឹកស្អាតផ្លូវ ២៥៩ (ក្បែរខ្លោងទ្វារក្រោយ RUPP)",
+        nameEn: "Water refill shop near RUPP (St 259)",
+        addressKm: "ផ្លូវ ២៥៩, សង្កាត់ទឹកល្អក់១ (១០០ម ពីទ្វារក្រោយ RUPP)",
+        addressEn: "Street 259, Toul Kork (100m from RUPP Back Gate)",
+        image: "images/st259.jpg",
+        isFree: false,
+        priceLabel: "200៛/L",
+        priceKm: "២០០ រៀល / លីត្រ (200 riel/L)",
+        hours: "06:30 – 20:30",
+        isOpenNow: true,
+        isCampus: false,
+        distanceMeters: 380,
+        walkMinutes: "5 min walk",
+        typeKm: "ទឹកពិសាបរិសុទ្ធ RO បូមស្អាត គីមហុង",
+        typeEn: "Commercial Pure RO Filtered Water",
+        source: "Our photo & price verification",
+        checkedDate: "21 Oct 2026",
+        notesKm: "ហាងចាក់ទឹកស្អាតគីមហុងលើផ្លូវ ២៥៩ តម្លៃត្រឹម ២០០៛/លីត្រ ងាយស្រួលសម្រាប់និស្សិតផ្ទះជួល។",
+        notesEn: "Kimhong purified water refill store on Street 259 outside RUPP back gate. Only 200 riels per litre.",
+        mapCoords: { x: 380, y: 40 },
+        googleUrl: "https://www.google.com/maps/search/?api=1&query=Street+259+Toul+Kork+Phnom+Penh"
+      },
+      {
+        id: 6,
+        nameKm: "ទូទឹកចម្រោះ CJCC (មជ្ឈមណ្ឌលជប៉ុន)",
+        nameEn: "CJCC Campus Water Station",
+        addressKm: "បរិវេណ RUPP ច្រកទ្វារទី២",
+        addressEn: "RUPP Campus, Gate 2, Russian Fed Blvd",
+        image: "images/cbc.jpg",
+        isFree: true,
+        priceLabel: "Free",
+        priceKm: "ឥតគិតថ្លៃ (Free)",
+        hours: "07:30 – 18:00",
+        isOpenNow: true,
+        isCampus: true,
+        distanceMeters: 250,
+        walkMinutes: "3 min walk",
+        typeKm: "ទូទឹកស្អាតត្រជាក់ និងក្តៅ",
+        typeEn: "Cold & Room Temp Filtered Station",
+        source: "RUPP Student inspection",
+        checkedDate: "21 Oct 2026",
+        notesKm: "ស្ថិតនៅក្នុងសាលធំនៃអគារ CJCC ត្រជាក់ស្រួល និងមានសុវត្ថិភាពខ្ពស់។",
+        notesEn: "Located in the CJCC lobby area, clean, reliable and accessible.",
+        mapCoords: { x: 825, y: 275 },
+        googleUrl: "https://www.google.com/maps/search/?api=1&query=Cambodia-Japan+Cooperation+Center+CJCC+Phnom+Penh"
+      },
+      {
+        id: 8,
+        nameKm: "ដេប៉ូទឹកស្អាតទួលគោក ផ្លូវ ២៦១",
+        nameEn: "Toul Kork Clean Water Depo (St 261)",
+        addressKm: "ផ្លូវ ២៦១, ទួលគោក",
+        addressEn: "Street 261, Toul Kork",
+        image: "images/st259.jpg",
+        isFree: false,
+        priceLabel: "200៛/L",
+        priceKm: "២០០ រៀល / លីត្រ (200 riel/L)",
+        hours: "06:00 – 21:00",
+        isOpenNow: true,
+        isCampus: false,
+        distanceMeters: 450,
+        walkMinutes: "6 min walk",
+        typeKm: "ស្ថានីយ៍ទឹកស្អាត និងទឹកកកអនាម័យ",
+        typeEn: "Refill Station & Clean Ice",
+        source: "Refill Not Landfill list",
+        checkedDate: "21 Oct 2026",
+        notesKm: "បើកពីព្រលឹមរហូតដល់យប់ អាចចាក់ដបទឹកធំៗបាន។",
+        notesEn: "Open early morning to late evening for big water refills.",
+        mapCoords: { x: 970, y: 260 },
+        googleUrl: "https://www.google.com/maps/search/?api=1&query=Street+261+Toul+Kork+Phnom+Penh"
+      },
+      {
+        id: 2,
+        nameKm: "Kinin Cafe & Refill",
+        nameEn: "Kinin Cafe",
+        addressKm: "ផ្ទះលេខ ១២៣ ផ្លូវ ៤៤៦, ទួលទំពូង",
+        addressEn: "123 St 446, Toul Tom Poung",
+        image: "images/cbc.jpg",
+        isFree: true,
+        priceLabel: "Free",
+        priceKm: "ឥតគិតថ្លៃ (Free)",
+        hours: "08:00 – 22:00",
+        isOpenNow: true,
+        isCampus: false,
+        distanceMeters: 4200,
+        walkMinutes: "Russian Market",
+        typeKm: "ទឹកស្អាត Refill Not Landfill",
+        typeEn: "Refill Not Landfill Station",
+        source: "Refill Not Landfill list",
+        checkedDate: "21 Oct 2026",
+        notesKm: "ភោជនីយដ្ឋាន និងកាហ្វេគាំទ្របរិស្ថាននៅទួលទំពូង ផ្តល់ទឹក refill ដោយមិនគិតថ្លៃ។",
+        notesEn: "Eco-friendly cafe in Russian Market area offering free bottle refills.",
+        mapCoords: { x: 1080, y: 650 },
+        googleUrl: "https://www.google.com/maps/search/?api=1&query=Kinin+Street+446+Phnom+Penh"
+      },
+      {
+        id: 3,
+        nameKm: "Backyard Cafe",
+        nameEn: "Backyard Cafe",
+        addressKm: "ផ្ទះលេខ ១១B ផ្លូវ ២៤៦, ដូនពេញ",
+        addressEn: "11B St 246, Daun Penh",
+        image: "images/cbc.jpg",
+        isFree: true,
+        priceLabel: "Free",
+        priceKm: "ឥតគិតថ្លៃ (Free)",
+        hours: "07:30 – 20:00",
+        isOpenNow: true,
+        isCampus: false,
+        distanceMeters: 3500,
+        walkMinutes: "Daun Penh Area",
+        typeKm: "ទឹកស្អាត Refill Station",
+        typeEn: "Free Drinking Water Station",
+        source: "Refill Not Landfill list",
+        checkedDate: "21 Oct 2026",
+        notesKm: "ហាងកាហ្វេដើម្បីសុខភាពនៅខណ្ឌដូនពេញ ចូលរួមក្នុងបណ្តាញ Refill Not Landfill។",
+        notesEn: "Health cafe in Daun Penh supporting the Refill Not Landfill movement.",
+        mapCoords: { x: 1080, y: 550 },
+        googleUrl: "https://www.google.com/maps/search/?api=1&query=Backyard+Cafe+Phnom+Penh"
+      }
+    ];
+
+    // State Variables
+    let currentLang = 'km';
+    let currentFilter = 'all';
+    let searchQuery = '';
+    let selectedStationId = 1;
+
+    // Pan & Zoom State
+    let zoomLevel = 1.0;
+    let panX = 0, panY = 0;
+    let isDragging = false;
+    let dragStartX = 0, dragStartY = 0;
+
+    // Bilingual Dictionary
+    const i18n = {
+      km: {
+        filter_all: "ទាំងអស់",
+        filter_free: "ឥតគិតថ្លៃ (Free)",
+        filter_open: "កំពុងបើក",
+        filter_campus: "ក្នុងសាលា RUPP",
+        filter_paid: "បង់ប្រាក់ (200៛)",
+        btn_suggest: "ណែនាំកន្លែងចាក់ទឹក (Suggest Place)",
+        btn_about: "អំពីគម្រោង",
+        loc_label: "ទីតាំងបច្ចុប្បន្ន (Location)",
+        sidebar_places_title: "រូបភាពជាក់ស្ដែងកន្លែងចាក់ទឹក",
+        sort_distance: "រៀបតាមចម្ងាយជិតបំផុត",
+        legend_free: "ឥតគិតថ្លៃ (Free Refill)",
+        legend_paid: "បង់ប្រាក់ ២០០៛/L (Paid)",
+        btn_directions: "បង្ហាញផ្លូវលើ Google Maps (Directions)",
+        btn_details: "រូបថត & ព័ត៌មាន",
+        detail_price: "តម្លៃទឹក (Price):",
+        detail_hours: "ម៉ោងបើក (Hours):",
+        detail_type: "ប្រភេទទឹក (Dispenser):",
+        detail_source: "ប្រភពទិន្នន័យ (Source):",
+        detail_instructions: "ការណែនាំទីតាំងសម្រាប់និស្សិត៖",
+        btn_open_google: "បើកមើលផ្លូវលើ Google Maps",
+        suggest_heading: "ណែនាំកន្លែងចាក់ទឹកថ្មី",
+        suggest_sub: "ផ្ញើព័ត៌មានទៅកាន់ Telegram ក្រុមការងារ RUPP",
+        form_name: "ឈ្មោះទីតាំង (Place Name)*",
+        form_address: "អាសយដ្ឋាន ឬ ទីតាំងអគារ (Address / Building)*",
+        form_price: "តម្លៃ (Pricing)",
+        form_campus: "តំបន់ (Location)",
+        form_hours: "ម៉ោងបើក (Opening Hours)",
+        form_photo: "រូបថតទីតាំង (Photo)",
+        form_photo_btn: "ជ្រើសរើសរូបថតពីកុំព្យូទ័រ (Click or drag photo here)",
+        form_submit: "ផ្ញើទៅ Telegram ក្រុមការងារ RUPP",
+        about_title: "អំពីគម្រោង Refill Map",
+        about_mission_title: "🎯 គោលបំណងគម្រោង៖",
+        about_mission_desc: "\"គេហទំព័រដែលជួយនិស្សិត RUPP និងប្រជាជនក្នុងរាជធានីភ្នំពេញ ស្វែងរកកន្លែងចាក់ទឹកស្អាតក្នុងដបផ្ទាល់ខ្លួន ដើម្បីកាត់បន្ថយការទិញដបប្លាស្ទិក។\"",
+        about_3reasons: "ហេតុអ្វីបានជាការចាក់ទឹកជួយសង្គម និងបរិស្ថាន?"
+      },
+      en: {
+        filter_all: "All",
+        filter_free: "Free Refill",
+        filter_open: "Open Now",
+        filter_campus: "On Campus",
+        filter_paid: "Paid (200៛)",
+        btn_suggest: "＋ Suggest Place",
+        btn_about: "About Project",
+        loc_label: "Current Area",
+        sidebar_places_title: "Real View Refill Stations",
+        sort_distance: "Sorted by closest distance",
+        legend_free: "Free Refill",
+        legend_paid: "Paid 200៛/L",
+        btn_directions: "Directions in Google Maps",
+        btn_details: "Real Photo & Details",
+        detail_price: "Price per Litre:",
+        detail_hours: "Opening Hours:",
+        detail_type: "Dispenser Type:",
+        detail_source: "Data Source:",
+        detail_instructions: "Location Guidance:",
+        btn_open_google: "Open Directions in Google Maps",
+        suggest_heading: "Suggest a New Refill Station",
+        suggest_sub: "Sends location details to our student Telegram",
+        form_name: "Place Name*",
+        form_address: "Address or Building*",
+        form_price: "Pricing",
+        form_campus: "Location",
+        form_hours: "Opening Hours",
+        form_photo: "Photo of Refill Point",
+        form_photo_btn: "Click or drag photo from computer",
+        form_submit: "Send to Team Telegram",
+        about_title: "About Refill Map",
+        about_mission_title: "🎯 Project Mission:",
+        about_mission_desc: "\"A website that helps RUPP students and people in Phnom Penh to find places to refill their water bottle, so they buy fewer plastic bottles.\"",
+        about_3reasons: "Why refilling helps people and environment:"
+      }
+    };
+
+    function setLanguage(lang) {
+      currentLang = lang;
+      
+      const kmBtn = document.getElementById('lang-btn-km');
+      const enBtn = document.getElementById('lang-btn-en');
+      if (lang === 'km') {
+        kmBtn.className = 'px-3 py-1 rounded-full text-xs font-bold bg-white text-[#d70f64] shadow-xs transition flex items-center space-x-1';
+        enBtn.className = 'px-3 py-1 rounded-full text-xs font-bold text-[#707070] hover:text-[#1f1f1f] transition flex items-center space-x-1';
+        document.getElementById('header-tagline').innerText = 'ផែនទីចាក់ទឹកស្អាត · Phnom Penh';
+        document.getElementById('search-input').placeholder = 'ស្វែងរកកន្លែងចាក់ទឹក (Building A, CBC, IFL, St 259)...';
+        document.getElementById('desk-user-text').textContent = 'អ្នកនៅទីនេះ (You)';
+      } else {
+        enBtn.className = 'px-3 py-1 rounded-full text-xs font-bold bg-white text-[#d70f64] shadow-xs transition flex items-center space-x-1';
+        kmBtn.className = 'px-3 py-1 rounded-full text-xs font-bold text-[#707070] hover:text-[#1f1f1f] transition flex items-center space-x-1';
+        document.getElementById('header-tagline').innerText = 'Clean Drinking Water Refill Map · Phnom Penh';
+        document.getElementById('search-input').placeholder = 'Search clean water stations (Building A, CBC, IFL, St 259)...';
+        document.getElementById('desk-user-text').textContent = 'You are here';
+      }
+
+      document.querySelectorAll('[data-i18n]').forEach(el => {
+        const key = el.getAttribute('data-i18n');
+        if (i18n[currentLang][key]) {
+          el.innerText = i18n[currentLang][key];
+        }
+      });
+
+      renderSidebarList();
+      selectStation(selectedStationId, false);
+      showToast(currentLang === 'km' ? 'ភាសាត្រូវបានប្តូរទៅជា ភាសាខ្មែរ' : 'Language switched to English');
+    }
+
+    // Filter Logic
+    function setFilter(type) {
+      currentFilter = type;
+
+      document.querySelectorAll('.filter-pill').forEach(btn => {
+        btn.classList.remove('bg-[#d70f64]', 'text-white');
+        btn.classList.add('bg-[#f7f7f7]', 'text-[#1f1f1f]');
+      });
+      const active = document.getElementById(`filter-${type}`);
+      if (active) {
+        active.classList.remove('bg-[#f7f7f7]', 'text-[#1f1f1f]');
+        active.classList.add('bg-[#d70f64]', 'text-white');
+      }
+
+      stations.forEach(s => {
+        const pin = document.getElementById(`pin-desk-${s.id}`);
+        let visible = isStationMatching(s);
+        if (pin) pin.style.display = visible ? 'block' : 'none';
+      });
+
+      renderSidebarList();
+    }
+
+    function isStationMatching(s) {
+      if (currentFilter === 'free' && !s.isFree) return false;
+      if (currentFilter === 'paid' && s.isFree) return false;
+      if (currentFilter === 'campus' && !s.isCampus) return false;
+      if (currentFilter === 'open' && !s.isOpenNow) return false;
+
+      if (searchQuery) {
+        const q = searchQuery.toLowerCase();
+        const matchKm = s.nameKm.toLowerCase().includes(q) || s.addressKm.toLowerCase().includes(q);
+        const matchEn = s.nameEn.toLowerCase().includes(q) || s.addressEn.toLowerCase().includes(q);
+        if (!matchKm && !matchEn) return false;
+      }
+      return true;
+    }
+
+    function handleSearch(val) {
+      searchQuery = val.trim();
+      const clearBtn = document.getElementById('search-clear-btn');
+      clearBtn.style.display = searchQuery ? 'block' : 'none';
+      setFilter(currentFilter);
+    }
+
+    function clearSearch() {
+      const input = document.getElementById('search-input');
+      input.value = '';
+      handleSearch('');
+      input.focus();
+    }
+
+    // Render Foodpanda Style Station Cards with Real Photos
+    function renderSidebarList() {
+      const container = document.getElementById('desktop-places-list');
+      const filtered = stations.filter(isStationMatching);
+      filtered.sort((a, b) => a.distanceMeters - b.distanceMeters);
+
+      document.getElementById('places-count-tag').innerText = `(${filtered.length})`;
+
+      if (filtered.length === 0) {
+        container.innerHTML = `
+          <div class="p-8 text-center text-[#707070]">
+            <span class="text-3xl block mb-2">🔍</span>
+            <p class="text-xs font-semibold">រកមិនឃើញទីតាំងតាមការស្វែងរកនេះទេ</p>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = filtered.map(s => {
+        const isSelected = s.id === selectedStationId;
+        return `
+          <div onclick="selectStation(${s.id}, true)" class="bg-white p-3.5 rounded-2xl border transition cursor-pointer ${isSelected ? 'border-[#d70f64] shadow-md ring-1 ring-[#d70f64]/30' : 'border-[#ebebeb] hover:border-[#d70f64]/50 hover:shadow-xs'}">
+            <div class="flex items-start space-x-3">
+              <!-- Real Photo Thumbnail -->
+              <div class="relative w-16 h-16 rounded-xl overflow-hidden flex-shrink-0 shadow-xs border border-[#ebebeb] bg-slate-100">
+                <img src="${s.image}" alt="${s.nameEn}" class="w-full h-full object-cover">
+                <span class="absolute bottom-0 right-0 bg-[#d70f64] text-white text-[7.5px] font-bold px-1 rounded-tl">REAL</span>
+              </div>
+              
+              <div class="flex-1 min-w-0">
+                <div class="flex items-start justify-between">
+                  <h4 class="text-xs font-extrabold text-[#1f1f1f] leading-tight truncate pr-1">${currentLang === 'km' ? s.nameKm : s.nameEn}</h4>
+                  <span class="px-2 py-0.2 rounded-full text-[10px] font-extrabold flex-shrink-0 ${s.isFree ? 'bg-[#fdf2f7] text-[#d70f64] border border-[#fce7f0]' : 'bg-[#f7f7f7] text-[#1f1f1f] border border-[#ebebeb]'}">${s.isFree ? (currentLang === 'km' ? 'ឥតគិតថ្លៃ' : 'Free') : s.priceLabel}</span>
+                </div>
+                <p class="text-[11px] text-[#707070] mt-0.5 line-clamp-1">${currentLang === 'km' ? s.addressKm : s.addressEn}</p>
+                
+                <div class="flex items-center space-x-2 mt-1.5 text-[10.5px]">
+                  <span class="font-extrabold text-[#d70f64]">${s.walkMinutes}</span>
+                  <span class="text-[#cbd5e1]">•</span>
+                  <span class="text-[#707070]">${s.distanceMeters} m</span>
+                  <span class="text-[#cbd5e1]">•</span>
+                  <span class="text-emerald-600 font-bold">● ${s.hours}</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="flex items-center justify-between mt-2.5 pt-2 border-t border-[#f7f7f7] text-[11px]">
+              <span class="text-[#707070] text-[10.5px]">📷 រូបថតពិតនៅ RUPP</span>
+              <span class="text-[#d70f64] font-bold hover:underline">${currentLang === 'km' ? 'មើលលើផែនទី ➔' : 'View on map ➔'}</span>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // Select Station & Update Floating Map Card
+    function selectStation(id, panTo = true) {
+      selectedStationId = id;
+      const s = stations.find(x => x.id === id);
+      if (!s) return;
+
+      const popup = document.getElementById('desk-place-popup');
+      popup.classList.remove('hidden');
+
+      document.getElementById('popup-title').innerText = (currentLang === 'km') ? s.nameKm : s.nameEn;
+      document.getElementById('popup-address').innerText = (currentLang === 'km') ? s.addressKm : s.addressEn;
+      document.getElementById('popup-dist-badge').innerText = `${s.distanceMeters} m (${s.walkMinutes})`;
+      document.getElementById('popup-img').src = s.image;
+      
+      const priceBadge = document.getElementById('popup-price-badge');
+      if (s.isFree) {
+        priceBadge.innerText = (currentLang === 'km') ? 'ឥតគិតថ្លៃ' : 'Free';
+        priceBadge.className = 'px-2.5 py-0.5 rounded-full text-xs font-bold bg-[#fdf2f7] text-[#d70f64] border border-[#fce7f0]';
+      } else {
+        priceBadge.innerText = s.priceLabel;
+        priceBadge.className = 'px-2.5 py-0.5 rounded-full text-xs font-bold bg-[#f7f7f7] text-[#1f1f1f] border border-[#ebebeb]';
+      }
+
+      document.getElementById('popup-hours').innerText = (currentLang === 'km') ? `● កំពុងបើក · ${s.hours}` : `● Open · ${s.hours}`;
+      document.getElementById('popup-directions-btn').href = s.googleUrl;
+
+      stations.forEach(item => {
+        const pin = document.getElementById(`pin-desk-${item.id}`);
+        if (pin) {
+          if (item.id === id) {
+            pin.classList.add('active-fp-pin');
+          } else {
+            pin.classList.remove('active-fp-pin');
+          }
+        }
+      });
+
+      renderSidebarList();
+    }
+
+    function closeDesktopPopup() {
+      document.getElementById('desk-place-popup').classList.add('hidden');
+    }
+
+    function openFullDetailFromPopup() {
+      const s = stations.find(x => x.id === selectedStationId);
+      if (!s) return;
+
+      document.getElementById('modal-detail-title').innerText = (currentLang === 'km') ? s.nameKm : s.nameEn;
+      document.getElementById('modal-detail-tagline').innerText = (currentLang === 'km') ? s.addressKm : s.addressEn;
+      document.getElementById('modal-detail-photo').src = s.image;
+      document.getElementById('modal-detail-price').innerText = (currentLang === 'km') ? s.priceKm : (s.isFree ? 'Free' : s.priceLabel);
+      document.getElementById('modal-detail-hours').innerText = s.hours;
+      document.getElementById('modal-detail-type').innerText = (currentLang === 'km') ? s.typeKm : s.typeEn;
+      document.getElementById('modal-detail-source').innerText = s.source;
+      document.getElementById('modal-detail-notes').innerText = (currentLang === 'km') ? s.notesKm : s.notesEn;
+      document.getElementById('modal-detail-map-link').href = s.googleUrl;
+
+      openModal('detail-modal');
+    }
+
+    function openModal(id) {
+      document.getElementById(id).classList.remove('hidden');
+    }
+    function closeModal(id) {
+      document.getElementById(id).classList.add('hidden');
+    }
+
+    function submitDesktopSuggestion(e) {
+      e.preventDefault();
+      const name = document.getElementById('desk-form-name').value;
+      closeModal('suggest-modal');
+      e.target.reset();
+
+      showToast(currentLang === 'km' 
+        ? `✓ បានផ្ញើទីតាំង "${name}" ទៅកាន់ Telegram ក្រុមការងារ RUPP រួចរាល់!`
+        : `✓ Sent "${name}" to RUPP Team Telegram successfully!`
+      );
+    }
+
+    // Pan & Zoom
+    function applyTransform() {
+      const svg = document.getElementById('svg-desktop-map');
+      svg.style.transform = `translate(${panX}px, ${panY}px) scale(${zoomLevel})`;
+    }
+
+    function zoomDesktopMap(factor) {
+      zoomLevel = Math.min(Math.max(zoomLevel * factor, 0.75), 3.0);
+      applyTransform();
+    }
+
+    function resetDesktopMapView() {
+      zoomLevel = 1.0;
+      panX = 0;
+      panY = 0;
+      applyTransform();
+      selectStation(1, false);
+      showToast(currentLang === 'km' ? 'បានត្រឡប់មកចំណុចកណ្ដាល RUPP' : 'Centered on RUPP Campus');
+    }
+
+    const mapViewport = document.getElementById('map-viewport');
+    mapViewport.addEventListener('mousedown', (e) => {
+      if (e.target.closest('#desk-place-popup') || e.target.closest('.cursor-pointer')) return;
+      isDragging = true;
+      dragStartX = e.clientX - panX;
+      dragStartY = e.clientY - panY;
+    });
+
+    window.addEventListener('mousemove', (e) => {
+      if (!isDragging) return;
+      panX = e.clientX - dragStartX;
+      panY = e.clientY - dragStartY;
+      applyTransform();
+    });
+
+    window.addEventListener('mouseup', () => {
+      isDragging = false;
+    });
+
+    mapViewport.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      const factor = e.deltaY < 0 ? 1.1 : 0.9;
+      zoomDesktopMap(factor);
+    }, { passive: false });
+
+    function showToast(msg) {
+      const toast = document.getElementById('toast');
+      document.getElementById('toast-msg').innerText = msg;
+      toast.style.opacity = '1';
+      setTimeout(() => {
+        toast.style.opacity = '0';
+      }, 3200);
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      selectStation(1, false);
+      renderSidebarList();
+    });
+  </script>
+</body>
+</html>
