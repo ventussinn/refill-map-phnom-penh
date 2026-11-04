@@ -1,4 +1,4 @@
-# Refill Map Phnom Penh (ផែនទីចាក់ទឹកស្អាត)
+# Phnom Penh Refill Map (ផែនទីចាក់ទឹកស្អាត)
 
 An interactive web app that helps students at the Royal University of Phnom Penh (RUPP) and people in Phnom Penh find clean drinking water refill points so they can refill reusable bottles and reduce single-use plastic waste.
 
